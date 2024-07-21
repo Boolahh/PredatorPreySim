@@ -22,17 +22,18 @@ class Predator:
     def __init__(self, x, y):
         self.x = x
         self.y = y
-        self.energy = 5
+        self.energy = 10  # Increased initial energy from 5 to 10
 
     def move(self):
         self.x = (self.x + random.choice([-1, 0, 1])) % GRID_SIZE
         self.y = (self.y + random.choice([-1, 0, 1])) % GRID_SIZE
+        self.energy -= 0.5  # Decreased energy loss per move from 1 to 0.5
 
     def eat(self):
-        self.energy += 2
+        self.energy += 5
 
     def starve(self):
-        self.energy -= 1
+        self.energy -= 1  # Constant starve amount
 
 # Initialize the grid
 grid = [[None for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
