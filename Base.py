@@ -1,14 +1,15 @@
-import random
+import tkinter as tk
+from tkinter import Scale, Label, Button, Toplevel
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.animation as animation
+import random
 
 # Constants
 GRID_SIZE = 20
-NUM_PREY = 50
-NUM_PREDATORS = 20
 STEPS = 100
+VISION_RADIUS = 3
 
-# Classes for Prey and Predator
 class Prey:
     def __init__(self, x, y):
         self.x = x
@@ -22,75 +23,87 @@ class Predator:
     def __init__(self, x, y):
         self.x = x
         self.y = y
-        self.energy = 10  # Increased initial energy from 5 to 10
+        self.energy = 10
 
-    def move(self):
-        self.x = (self.x + random.choice([-1, 0, 1])) % GRID_SIZE
-        self.y = (self.y + random.choice([-1, 0, 1])) % GRID_SIZE
-        self.energy -= 0.5  # Decreased energy loss per move from 1 to 0.5
+    def move(self, grid):
+        found_prey = None
+        for dx in range(-VISION_RADIUS, VISION_RADIUS + 1):
+            for dy in range(-VISION_RADIUS, VISION_RADIUS + 1):
+                nx, ny = (self.x + dx) % GRID_SIZE, (self.y + dy) % GRID_SIZE
+                if grid[nx][ny] == 'Prey':
+                    found_prey = (dx, dy)
+                    break
+            if found_prey:
+                break
+        if found_prey:
+            self.x = (self.x + found_prey[0]) % GRID_SIZE
+            self.y = (self.y + found_prey[1]) % GRID_SIZE
+        else:
+            self.x = (self.x + random.choice([-1, 0, 1])) % GRID_SIZE
+            self.y = (self.y + random.choice([-1, 0, 1])) % GRID_SIZE
+        self.energy -= 0.5
 
     def eat(self):
         self.energy += 5
 
     def starve(self):
-        self.energy -= 1  # Constant starve amount
+        self.energy -= 1
 
-# Initialize the grid
-grid = [[None for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
+# Tkinter main window setup
+root = tk.Tk()
+root.title("Predator-Prey Simulation Controls")
 
-# Place prey randomly on the grid
-prey_list = []
-for _ in range(NUM_PREY):
-    x, y = random.randint(0, GRID_SIZE-1), random.randint(0, GRID_SIZE-1)
-    prey = Prey(x, y)
-    prey_list.append(prey)
-    grid[x][y] = 'Prey'
+# Variables for dynamic updates
+num_prey = tk.IntVar(value=50)
+num_predators = tk.IntVar(value=20)
 
-# Place predators randomly on the grid
-predator_list = []
-for _ in range(NUM_PREDATORS):
-    x, y = random.randint(0, GRID_SIZE-1), random.randint(0, GRID_SIZE-1)
-    predator = Predator(x, y)
-    predator_list.append(predator)
-    grid[x][y] = 'Predator'
+Label(root, text="Number of Prey:").pack()
+prey_scale = Scale(root, from_=10, to=100, orient='horizontal', variable=num_prey)
+prey_scale.pack()
 
-# Simulation loop
+Label(root, text="Number of Predators:").pack()
+predator_scale = Scale(root, from_=5, to=50, orient='horizontal', variable=num_predators)
+predator_scale.pack()
+
+# Separate window for the plot to keep GUI clean
+plot_window = Toplevel(root)
+plot_window.title("Simulation Plot")
+
+# Setting up the figure and embedding it in the Tkinter window
 fig, ax = plt.subplots()
+canvas = FigureCanvasTkAgg(fig, master=plot_window)  # Embedding the plot
+canvas.draw()
+canvas.get_tk_widget().pack()
 
-def update(frame):
-    global prey_list, predator_list, grid
+# Function to start the simulation
+def start_simulation():
+    prey_list = [Prey(random.randint(0, GRID_SIZE - 1), random.randint(0, GRID_SIZE - 1)) for _ in range(num_prey.get())]
+    predator_list = [Predator(random.randint(0, GRID_SIZE - 1), random.randint(0, GRID_SIZE - 1)) for _ in range(num_predators.get())]
+    grid = [['' for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
 
-    ax.clear()
+    def animate(frame):
+        ax.clear()
+        for prey in prey_list:
+            prey.move()
+            ax.plot(prey.x, prey.y, 'go')
+        for predator in predator_list:
+            predator.move(grid)
+            if grid[predator.x][predator.y] == 'Prey':
+                predator.eat()
+            else:
+                predator.starve()
+            if predator.energy > 0:
+                ax.plot(predator.x, predator.y, 'ro')
+            else:
+                predator_list.remove(predator)
+        return ax,
 
-    # Move prey
-    for prey in prey_list:
-        grid[prey.x][prey.y] = None
-        prey.move()
-        grid[prey.x][prey.y] = 'Prey'
+    ani = animation.FuncAnimation(fig, animate, frames=STEPS, repeat=False)
+    canvas.draw()
 
-    # Move predators
-    for predator in predator_list:
-        grid[predator.x][predator.y] = None
-        predator.move()
+start_button = Button(root, text="Start Simulation", command=start_simulation)
+start_button.pack()
 
-        if grid[predator.x][predator.y] == 'Prey':
-            predator.eat()
-            prey_list = [prey for prey in prey_list if prey.x != predator.x or prey.y != predator.y]
-        else:
-            predator.starve()
+root.mainloop()
 
-        if predator.energy > 0:
-            grid[predator.x][predator.y] = 'Predator'
-        else:
-            predator_list.remove(predator)
 
-    # Draw the grid
-    for x in range(GRID_SIZE):
-        for y in range(GRID_SIZE):
-            if grid[x][y] == 'Prey':
-                ax.plot(x, y, 'go')  # Green for prey
-            elif grid[x][y] == 'Predator':
-                ax.plot(x, y, 'ro')  # Red for predators
-
-ani = animation.FuncAnimation(fig, update, frames=STEPS, repeat=False)
-plt.show()
