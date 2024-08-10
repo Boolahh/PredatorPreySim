@@ -8,7 +8,6 @@ class Predator:
         self.energy = energy
 
     def move(self, grid, energy_consumption):
-        # Attempt to detect nearby prey and move towards it
         best_move = None
         min_dist = float('inf')
         for dx in range(-VISION_RADIUS, VISION_RADIUS + 1):
@@ -31,3 +30,8 @@ class Predator:
 
     def starve(self, starvation_rate):
         self.energy -= starvation_rate
+
+    def reproduce(self, reproduction_prob):
+        if random.random() < reproduction_prob:
+            return Predator(self.x, self.y, self.energy)
+        return None
