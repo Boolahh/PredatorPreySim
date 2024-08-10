@@ -9,3 +9,4 @@ root = tk.Tk()
 root.title("Predator-Prey Simulation Controls")
 simulation = Simulation(root)
 root.mainloop()
+
